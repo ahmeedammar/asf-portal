@@ -33,7 +33,11 @@ app.register_blueprint(forum_bp, url_prefix='/api')
 app.register_blueprint(survey_bp, url_prefix='/api')
 
 # Database configuration
-db_path = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(__file__), 'database', 'app.db'))
+db_dir = os.getenv("DATABASE_DIR", "/opt/render/project/data")
+os.makedirs(db_dir, exist_ok=True)
+
+db_path = os.path.join(db_dir, "app.db")
+
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
