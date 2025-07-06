@@ -1,8 +1,5 @@
 import os
 import sys
-# DON'T CHANGE THIS !!!
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from src.models.user import db, User
@@ -10,18 +7,26 @@ from src.routes.user import user_bp
 from src.routes.forum import forum_bp
 from src.routes.survey import survey_bp
 
+# Initialize Flask app
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
+
+# Configuration
 app.config['SECRET_KEY'] = 'asf-consulting-portal-secret-key-2024'
-app.config['SESSION_COOKIE_SECURE'] = False  # Pour le développement
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_SESSION_SECURE', 'False').lower() == 'true'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Enable CORS for all routes with specific origins
-CORS(app, 
+CORS(app,
      supports_credentials=True,
-     origins=['https://3000-iabice1ds1af29tmx3buf-1d794291.manusvm.computer', 'http://localhost:3000', 'http://169.254.0.21:3000'],
-     allow_headers=['Content-Type', 'Authorization'],
-     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+     origins=[
+         "http://localhost:4173",  # Vite dev server
+         "http://localhost:3000",  # React dev server (common alternative)
+         "https://your-deployed-frontend.netlify.app "  # Replace with real Netlify URL
+     ],
+     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     expose_headers=["X-Custom-Header"])
 
 # Register blueprints
 app.register_blueprint(user_bp, url_prefix='/api')
@@ -29,13 +34,14 @@ app.register_blueprint(forum_bp, url_prefix='/api')
 app.register_blueprint(survey_bp, url_prefix='/api')
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+db_path = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(__file__), 'database', 'app.db'))
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 with app.app_context():
     db.create_all()
-    
+
     # Create default admin user if it doesn't exist
     admin_user = User.query.filter_by(username='admin').first()
     if not admin_user:
@@ -55,7 +61,7 @@ with app.app_context():
 def serve(path):
     static_folder_path = app.static_folder
     if static_folder_path is None:
-            return "Static folder not configured", 404
+        return "Static folder not configured", 404
 
     if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
         return send_from_directory(static_folder_path, path)
@@ -71,5 +77,4 @@ def health_check():
     return {'status': 'healthy', 'message': 'ASF Consulting Portal API is running'}
 
 if __name__ == '__main__':
-    app.run(host='localhost', port=5000, debug=True)
-
+    app.run(host='0.0.0.0', port=5000, debug=True)
