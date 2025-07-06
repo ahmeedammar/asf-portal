@@ -21,8 +21,8 @@ CORS(app,
      supports_credentials=True,
      origins=[
          "http://localhost:4173",  # Vite dev server
-         "http://localhost:3000",  # React dev server
-         "https://asfhelpdesk.netlify.app "  # Deployed frontend
+         "http://localhost:3000",  # React dev server (common alternative)
+         "https://your-deployed-frontend.netlify.app "  # Replace with real Netlify URL
      ],
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
