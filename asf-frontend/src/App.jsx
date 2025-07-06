@@ -1,108 +1,265 @@
-import { useEffect, useState } from 'react';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useState, useEffect, createContext, useContext } from "react";
+import { API_BASE_URL } from "./config/api";
+import Navbar from "./components/Navbar";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import Dashboard from "./components/Dashboard";
+import Forum from "./components/forum/Forum";
+import AdminPanel from "./components/admin/AdminPanel";
+import Survey from "./components/survey/Survey";
+import PublicSurvey from "./components/survey/PublicSurvey";
+import SurveyEdit from "./components/admin/SurveyEdit";
+import SurveyStats from "./components/survey/SurveyStats";
+import SurveyManagement from "./components/admin/SurveyManagement";
+import SurveyCreator from "./components/admin/SurveyCreator";
+import SurveySelector from "./components/survey/SurveySelector";
+import "./App.css";
+
+// Context pour l'authentification
+const AuthContext = createContext();
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
+
+// Composant pour protéger les routes
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Chargement...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && !user.is_admin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
 
 function App() {
   const [user, setUser] = useState(null);
-  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Login function
-  const login = async () => {
-    try {
-      const res = await fetch('https://helpdesk-web-service.onrender.com/api/login ', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'admin', password: 'admin123' }),
-        credentials: 'include' // Important for cookies
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        console.log('Login successful', data);
-        fetchUsers(); // Fetch users after login
-      } else {
-        alert('Login failed');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error logging in');
-    }
-  };
-
-  // Fetch users
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch('https://helpdesk-web-service.onrender.com/api/users ', {
-        method: 'GET',
-        credentials: 'include' // Required if using session cookies
-      });
-
-      if (res.status === 401) {
-        alert('You need to log in first');
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-      setUsers(data);
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to load users');
-      setLoading(false);
-    }
-  };
-
-  // Check if user is already logged in
+  // Vérifier si l'utilisateur est connecté au chargement
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch('https://helpdesk-web-service.onrender.com/api/me ', {
-          method: 'GET',
-          credentials: 'include'
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data);
-          fetchUsers();
-        } else {
-          setLoading(false);
-        }
-      } catch (err) {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
+    checkAuthStatus();
   }, []);
 
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/me`, {
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error(
+        "Erreur lors de la vérification de l'authentification:",
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (username, password) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setUser(data.user);
+        return { success: true };
+      } else {
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      return { success: false, error: "Erreur de connexion au serveur" };
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        return { success: true };
+      } else {
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      return { success: false, error: "Erreur de connexion au serveur" };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/api/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+    } finally {
+      setUser(null);
+    }
+  };
+
+  const authValue = {
+    user,
+    login,
+    register,
+    logout,
+    loading,
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Chargement de l'application...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">User Management</h1>
+    <AuthContext.Provider value={authValue}>
+      <Router>
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="container mx-auto px-4 py-8">
+            <Routes>
+              {/* Routes publiques */}
+              <Route
+                path="/survey/:surveyId/public"
+                element={<PublicSurvey />}
+              />
+              <Route
+                path="/login"
+                element={
+                  user ? <Navigate to="/dashboard" replace /> : <Login />
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  user ? <Navigate to="/dashboard" replace /> : <Register />
+                }
+              />
+              <Route
+                path="/survey/:surveyId"
+                element={
+                  user && user.is_admin ? <Survey /> : <SurveySelector />
+                }
+              />
+              <Route path="/surveys" element={<SurveySelector />} />
 
-      {loading ? (
-        <p>Loading...</p>
-      ) : user ? (
-        <>
-          <p>Welcome, {user.username}</p>
-          <button onClick={login} className="bg-blue-500 text-white px-4 py-2 rounded mt-2">
-            Refresh Users
-          </button>
+              {/* Routes protégées */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/forum"
+                element={
+                  <ProtectedRoute>
+                    <Forum />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminPanel />
+                  </ProtectedRoute>
+                }
+              />
+              
+              <Route
+                path="/survey"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <SurveyManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/survey/edit/:id" element={<SurveyEdit />} />
+              <Route
+                path="/survey/create"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <SurveyCreator />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/survey/:surveyId/stats"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <SurveyStats />
+                  </ProtectedRoute>
+                }
+              />
 
-          <ul className="mt-4 space-y-2">
-            {users.length > 0 ? (
-              users.map((u) => <li key={u.id}>{u.username}</li>)
-            ) : (
-              <p>No users found.</p>
-            )}
-          </ul>
-        </>
-      ) : (
-        <button onClick={login} className="bg-green-500 text-white px-4 py-2 rounded">
-          Log In
-        </button>
-      )}
-    </div>
+              {/* Redirection par défaut */}
+              <Route
+                path="/"
+                element={
+                  user ? (
+                    <Navigate to="/dashboard" replace />
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                }
+              />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </AuthContext.Provider>
   );
 }
 
