@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from flask_cors import CORS
 from src.models.user import db, User
 from src.routes.user import user_bp
@@ -21,12 +21,11 @@ CORS(app,
      supports_credentials=True,
      origins=[
          "http://localhost:4173",  # Vite dev server
-         "http://localhost:3000",  # React dev server (common alternative)
-         "https://your-deployed-frontend.netlify.app "  # Replace with real Netlify URL
+         "http://localhost:3000",  # React dev server
+         "https://asfhelpdesk.netlify.app "  # Deployed frontend
      ],
-     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     expose_headers=["X-Custom-Header"])
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 # Register blueprints
 app.register_blueprint(user_bp, url_prefix='/api')
@@ -54,16 +53,17 @@ with app.app_context():
         admin_user.set_password('admin123')
         db.session.add(admin_user)
         db.session.commit()
-        #print("Default admin user created: admin/admin123")
+        print("Default admin user created: admin/admin123")
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
     static_folder_path = app.static_folder
-    if static_folder_path is None:
-        return "Static folder not configured", 404
+    if not static_folder_path or not os.path.exists(static_folder_path):
+        return "Static folder not configured or does not exist", 404
 
-    if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
+    requested_file = os.path.join(static_folder_path, path)
+    if path and os.path.isfile(requested_file):
         return send_from_directory(static_folder_path, path)
     else:
         index_path = os.path.join(static_folder_path, 'index.html')
