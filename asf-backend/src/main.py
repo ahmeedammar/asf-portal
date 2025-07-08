@@ -16,15 +16,15 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asf-consulting-portal-secret-key-2024')
-app.config['SESSION_COOKIE_SECURE'] = True  # For HTTPS in production
+app.config['SESSION_COOKIE_SECURE'] = True  # For HTTPS on Render
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-app.config['PREFERRED_URL_SCHEME'] = 'https'  # Ensure HTTPS for Render
+app.config['PREFERRED_URL_SCHEME'] = 'https'
 
-# Enable CORS for all routes
+# Enable CORS
 CORS(app, 
      supports_credentials=True,
-     origins=['https://helpdesk-web-service.onrender.com', 'http://localhost:3000', 'http://169.254.0.21:3000', '*'],  # Wildcard for testing
+     origins=['https://helpdesk-web-service.onrender.com', 'http://localhost:3000', 'http://169.254.0.21:3000', '*'],
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
@@ -34,7 +34,8 @@ app.register_blueprint(forum_bp, url_prefix='/api')
 app.register_blueprint(survey_bp, url_prefix='/api')
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f"sqlite:////opt/render/project/src/database/app.db")
+database_path = os.environ.get('DATABASE_PATH', '/tmp')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f"sqlite:///{database_path}/app.db")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
